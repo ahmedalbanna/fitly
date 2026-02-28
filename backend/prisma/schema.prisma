@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  passwordHash   String
+  phone          String?
+  emailVerified  Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  profiles       Profile[]
+  subscription   Subscription?
+  trialStatus    TrialStatus?
+  otpTokens      OtpToken[]
+  resetTokens    ResetToken[]
+
+  @@map("users")
+}
+
+model Profile {
+  id           String        @id @default(uuid())
+  userId       String
+  name         String
+  isMain       Boolean       @default(false)
+  gender       String?       // "male" | "female" | null
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  measurements Measurement[]
+  cards        Card[]
+
+  @@map("profiles")
+}
+
+model Measurement {
+  id          String   @id @default(uuid())
+  profileId   String
+  height      Float?   // cm
+  weight      Float?   // kg
+  chest       Float?   // cm
+  waist       Float?   // cm
+  hip         Float?   // cm
+  armLength   Float?   // cm
+  legLength   Float?   // cm
+  shoeSize    Float?   // cm or EU size
+  recordedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("measurements")
+}
+
+model Card {
+  id          String   @id @default(uuid())
+  profileId   String
+  shareToken  String   @unique @default(uuid())
+  data        Json     // generated card data
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("cards")
+}
+
+model Subscription {
+  id          String             @id @default(uuid())
+  userId      String             @unique
+  type        SubscriptionType
+  status      SubscriptionStatus @default(ACTIVE)
+  startDate   DateTime           @default(now())
+  endDate     DateTime
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model TrialStatus {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  used        Boolean  @default(false)
+  activatedAt DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("trial_status")
+}
+
+model OtpToken {
+  id        String   @id @default(uuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("otp_tokens")
+}
+
+model ResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reset_tokens")
+}
+
+model ConversionTable {
+  id          String @id @default(uuid())
+  productType String // "Shirts" | "Pants" | "Shoes" | "Thobe"
+  system      String // "EU" | "US" | "UK" | "CM"
+  sizeLabel   String
+  minValue    Float
+  maxValue    Float
+
+  @@map("conversion_tables")
+}
+
+model Banner {
+  id        String   @id @default(uuid())
+  imageUrl  String
+  linkUrl   String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("banners")
+}
+
+enum SubscriptionType {
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}

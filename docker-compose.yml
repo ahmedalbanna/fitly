@@ -1,0 +1,55 @@
+version: '3.9'
+
+services:
+  # ─── PostgreSQL Database ──────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: fitly_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fitly
+      POSTGRES_PASSWORD: fitly_secret
+      POSTGRES_DB: fitly_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - fitly_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fitly -d fitly_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── Backend API ──────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fitly_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://fitly:fitly_secret@db:5432/fitly_db
+      JWT_SECRET: fitly-super-secret-jwt-key-change-in-production
+      JWT_EXPIRES_IN: 7d
+      PORT: 3000
+      NODE_ENV: development
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: your-email@gmail.com
+      SMTP_PASS: your-app-password
+      EMAIL_FROM: "FITLY <noreply@fitly.app>"
+      APP_URL: http://localhost:3000
+      FRONTEND_URL: http://localhost:8081
+      OTP_EXPIRES_MINUTES: 15
+      TRIAL_DURATION_HOURS: 24
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+
+volumes:
+  fitly_pgdata:
